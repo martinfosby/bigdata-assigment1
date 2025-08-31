@@ -23,6 +23,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import imageio
+import pydicom
 
 # ---------- CONFIG ----------
 INPUT_ZIP = "Harnverhalt2.zip"
@@ -50,24 +51,45 @@ def ensure_unzip_or_dir():
     if not os.path.isdir(INPUT_DIR):
         raise FileNotFoundError(f"Could not find {INPUT_DIR} folder nor {INPUT_ZIP} zip. Please provide files.")
 
+# Harnverhalt. Load the medical images for harnverhalt2 using OpenCV.
 def load_images_from_dir():
-    exts = ("*.png","*.jpg","*.jpeg","*.tif","*.tiff","*.bmp")
+    exts = ("*.png","*.jpg","*.jpeg","*.tif","*.tiff","*.bmp", "*.dcm")
     files = []
     for e in exts:
         files.extend(glob(os.path.join(INPUT_DIR, "**", e), recursive=True))
     files = sorted(files)
-    if len(files)==0:
+    
+    if len(files) == 0:
         raise FileNotFoundError(f"No images found in {INPUT_DIR}.")
+    
     imgs = []
     for f in files:
-        img = cv2.imread(f, cv2.IMREAD_COLOR)
-        if img is None:
-            print("Warning: couldn't read", f)
-            continue
+        if f.lower().endswith(".dcm"):
+            try:
+                ds = pydicom.dcmread(f)
+                img = ds.pixel_array
+                # normalize to 0-255 uint8 for consistency with other images
+                img = 255 * (img - img.min()) / (img.max() - img.min() + 1e-9)
+                img = img.astype(np.uint8)
+                # convert to BGR if grayscale so OpenCV functions work consistently
+                if len(img.shape) == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+            except Exception as e:
+                print("Warning: couldn't read DICOM file", f, e)
+                continue
+        else:
+            img = cv2.imread(f, cv2.IMREAD_COLOR)
+            if img is None:
+                print("Warning: couldn't read", f)
+                continue
+        
         imgs.append((f, img))
+    
     print(f"Loaded {len(imgs)} images.")
     return imgs
 
+
+# Convert the images to grayscale and normalize the pixel values (0-255).
 def to_grayscale_and_normalize(img):
     # Convert to gray and normalize to 0-255 uint8
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -76,14 +98,18 @@ def to_grayscale_and_normalize(img):
     g = 255 * (g - g.min()) / (g.max() - g.min() + 1e-9)
     return g.astype(np.uint8)
 
+# Display the original images. Apply morphological operations of your choice to enhance your results. 
 def morphological_enhancement(gray):
     # median denoise + morphological open then close to remove small noise and fill holes
-    den = cv2.medianBlur(gray, 5)
+    denoised = cv2.medianBlur(gray, 5)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-    opened = cv2.morphologyEx(den, cv2.MORPH_OPEN, kernel, iterations=1)
+    opened = cv2.morphologyEx(denoised, cv2.MORPH_OPEN, kernel, iterations=1)
     closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=1)
     return closed
 
+# use kmeans to cluster the images. 
+# Apply kmeans clustering to segment the medical images into different regions (e.g., tumor vs. non-tumor regions). 
+# Choose a reasonable number of clusters (e.g., k=3 or k=5).
 def segment_kmeans(image_gray, k=3, use_pca=False, pca_model=None):
     # image_gray: 2D array uint8
     h,w = image_gray.shape
@@ -114,6 +140,8 @@ def segment_kmeans(image_gray, k=3, use_pca=False, pca_model=None):
     labels_img = labels.reshape(h,w)
     return labels_img, pca_model
 
+# Visualize the clustered images by colouring the segments based on the cluster labels. 
+# Improve your results using PCA-
 def colorize_labels(labels_img):
     # produce color image from label map
     h,w = labels_img.shape
