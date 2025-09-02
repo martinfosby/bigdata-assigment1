@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_blobs, make_moons, make_circles
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans, MeanShift, Birch
+from sklearn.cluster import KMeans, MeanShift, Birch, DBSCAN, OPTICS
 
 # Define datasets
 datasets = {
@@ -15,7 +15,9 @@ datasets = {
 clustering_algorithms = {
     "KMeans": KMeans(n_clusters=4, random_state=42),
     "MeanShift": MeanShift(),
-    "BIRCH": Birch(n_clusters=4)
+    "BIRCH": Birch(n_clusters=4),
+    "DBSCAN": DBSCAN(),
+    "OPTICS": OPTICS()
 }
 
 # Helper function to plot results
