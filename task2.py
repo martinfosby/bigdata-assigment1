@@ -1,3 +1,12 @@
+# 2) Harnverhalt. Load the medical images for harnverhalt2 using OpenCV. Harnverhalt2.zipLast ned Harnverhalt2.zip
+# Convert the images to grayscale and normalize the pixel values (0-255).
+# Display the original images. Apply morphological operations of your choice to enhance your results. 
+# use kmeans to cluster the images. Apply kmeans clustering to segment the medical images into different regions (e.g., tumor vs. non-tumor regions). Choose a reasonable number of clusters (e.g., k=3 or k=5).
+# Visualize the clustered images by colouring the segments based on the cluster labels. Improve your results using PCA-
+
+# Reconstruct the images from the reduced PCA representation and visualize the reconstruction quality.
+# Compare the reconstructed images to the original ones and discuss the trade-off between dimensionality reduction and image quality. Calculate the difference images and display the results. Create a presentation video for your results or arrange a meeting with me to show your results
+
 """
 harnverhalt_pipeline.py
 Full pipeline:
@@ -29,7 +38,7 @@ import pydicom
 INPUT_ZIP = "Harnverhalt2.zip"
 INPUT_DIR = "Harnverhalt2"
 OUTPUT_DIR = "output"
-K = 3  # prøv 3 eller 5
+K = 5
 PCA_COMPONENTS = 0.95  # or int like 50; use float for explained variance ratio
 VIDEO_FPS = 1
 # ----------------------------
@@ -68,12 +77,6 @@ def load_images_from_dir():
             try:
                 ds = pydicom.dcmread(f)
                 img = ds.pixel_array
-                # normalize to 0-255 uint8 for consistency with other images
-                img = 255 * (img - img.min()) / (img.max() - img.min() + 1e-9)
-                img = img.astype(np.uint8)
-                # convert to BGR if grayscale so OpenCV functions work consistently
-                if len(img.shape) == 2:
-                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
             except Exception as e:
                 print("Warning: couldn't read DICOM file", f, e)
                 continue
@@ -91,54 +94,59 @@ def load_images_from_dir():
 
 # Convert the images to grayscale and normalize the pixel values (0-255).
 def to_grayscale_and_normalize(img):
-    # Convert to gray and normalize to 0-255 uint8
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # scale to 0-255 if not already
+    '''
+    Convert to gray and normalize to 0-255 uint8
+    '''
+    # Convert to grayscale if needed
+    if len(img.shape) != 2:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img
+
+    # Convert to float32 for normalization
     g = gray.astype(np.float32)
+
+    # Normalize to 0-255
     g = 255 * (g - g.min()) / (g.max() - g.min() + 1e-9)
+
+    # convert back to uint8
     return g.astype(np.uint8)
 
 # Display the original images. Apply morphological operations of your choice to enhance your results. 
 def morphological_enhancement(gray):
-    # median denoise + morphological open then close to remove small noise and fill holes
+    """
+    Apply morphological operations to enhance tumor-like regions.
+    Best practice for tumor detection is usually:
+    - Median filtering to reduce noise.
+    - Morphological closing to fill small holes inside bright regions (potential tumors).
+    - Morphological opening to remove small bright noise.
+    """
+    # Denoise
     denoised = cv2.medianBlur(gray, 5)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-    opened = cv2.morphologyEx(denoised, cv2.MORPH_OPEN, kernel, iterations=1)
-    closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=1)
-    return closed
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
+    # Fill holes (close), then remove small noise (open)
+    closed = cv2.morphologyEx(denoised, cv2.MORPH_CLOSE, kernel, iterations=1)
+    opened = cv2.morphologyEx(closed, cv2.MORPH_OPEN, kernel, iterations=1)
+    return opened
 
 # use kmeans to cluster the images. 
 # Apply kmeans clustering to segment the medical images into different regions (e.g., tumor vs. non-tumor regions). 
 # Choose a reasonable number of clusters (e.g., k=3 or k=5).
 def segment_kmeans(image_gray, k=3, use_pca=False, pca_model=None):
-    # image_gray: 2D array uint8
-    h,w = image_gray.shape
-    # feature vector: intensity + optionally XY coordinates (helps spatial coherence)
-    X = image_gray.reshape(-1,1).astype(np.float32)
-    # add spatial coordinates normalized
-    yy, xx = np.indices((h,w))
-    coords = np.stack([xx.reshape(-1)/w, yy.reshape(-1)/h], axis=1).astype(np.float32)
-    features = np.concatenate([X, coords], axis=1)
-    # Optionally apply PCA to features (for clustering)
-    if use_pca:
-        if pca_model is None:
-            pca = PCA(n_components=PCA_COMPONENTS, svd_solver='full')
-            features_scaled = StandardScaler().fit_transform(features)
-            features_p = pca.fit_transform(features_scaled)
-            pca_model = (pca, StandardScaler())
-        else:
-            pca, scaler = pca_model
-            features_p = pca.transform(scaler.transform(features))
-        km = KMeans(n_clusters=k, random_state=42, n_init=10)
-        labels = km.fit_predict(features_p)
-    else:
-        scaler = StandardScaler()
-        features_scaled = scaler.fit_transform(features)
-        km = KMeans(n_clusters=k, random_state=42, n_init=10)
-        labels = km.fit_predict(features_scaled)
-        pca_model = (None, scaler)
-    labels_img = labels.reshape(h,w)
-    return labels_img, pca_model
+    pixels = image_gray.reshape(-1, 1).astype(np.float32)
+    # Apply K-means clustering
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
+    attempts = 10
+    flags = cv2.KMEANS_RANDOM_CENTERS
+
+    retval, labels, centers = cv2.kmeans(np.float32(pixels), k, None, criteria, attempts, flags)
+
+    centers = np.uint8(centers)
+    segmented_image = centers[labels.flatten()]
+    segmented_image = segmented_image.reshape(image_gray.shape)
+
+    return segmented_image, None
+    
 
 # Visualize the clustered images by colouring the segments based on the cluster labels. 
 # Improve your results using PCA-
@@ -197,9 +205,9 @@ def pca_reconstruct_image(image_gray, n_components=PCA_COMPONENTS):
     return recon_img, pca_fit
 
 def process_and_save_all():
-    ensure_unzip_or_dir()
+    # ensure_unzip_or_dir()
     imgs = load_images_from_dir()
-    video_frames = []
+    # video_frames = []
     for path, img in tqdm(imgs, desc="Processing images"):
         name = os.path.splitext(os.path.basename(path))[0]
         # save original (converted BGR -> RGB for matplotlib)
@@ -214,52 +222,54 @@ def process_and_save_all():
         cv2.imwrite(os.path.join(OUTPUT_DIR, "morph", name + "_morph.png"), morph)
 
         # segmentation without PCA
-        labels_no_pca, model_no = segment_kmeans(morph, k=K, use_pca=False)
-        vis_no_pca = colorize_labels(labels_no_pca)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_nopca.png"), vis_no_pca[:,:,::-1])  # BGR
+        # labels_no_pca, model_no = segment_kmeans(morph, k=K, use_pca=False)
+        segmented_image, _ = segment_kmeans(morph, k=K, use_pca=False)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_nopca.png"), segmented_image)
+        # vis_no_pca = colorize_labels(labels_no_pca)
+        # cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_nopca.png"), vis_no_pca[:,:,::-1])  # BGR
 
-        # segmentation with PCA applied to features
-        labels_pca, pca_model = segment_kmeans(morph, k=K, use_pca=True, pca_model=None)
-        vis_pca = colorize_labels(labels_pca)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_pca.png"), vis_pca[:,:,::-1])
+        # # segmentation with PCA applied to features
+        # labels_pca, pca_model = segment_kmeans(morph, k=K, use_pca=True, pca_model=None)
+        # vis_pca = colorize_labels(labels_pca)
+        # cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_pca.png"), vis_pca[:,:,::-1])
 
-        # PCA reconstruction
-        recon, pca_fit = pca_reconstruct_image(morph, n_components=PCA_COMPONENTS)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "pca_recon", name + f"_recon_pc{PCA_COMPONENTS}.png"), recon)
+    #     # PCA reconstruction
+    #     recon, pca_fit = pca_reconstruct_image(morph, n_components=PCA_COMPONENTS)
+    #     cv2.imwrite(os.path.join(OUTPUT_DIR, "pca_recon", name + f"_recon_pc{PCA_COMPONENTS}.png"), recon)
 
-        # difference image
-        diff = cv2.absdiff(gray, recon)
-        # scale diff for visibility
-        diff_vis = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "diff", name + f"_diff.png"), diff_vis)
+    #     # difference image
+    #     diff = cv2.absdiff(gray, recon)
+    #     # scale diff for visibility
+    #     diff_vis = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX)
+    #     cv2.imwrite(os.path.join(OUTPUT_DIR, "diff", name + f"_diff.png"), diff_vis)
 
-        # create montage for video: original | morph | seg(pca) | recon | diff
-        orig_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        morph_rgb = cv2.cvtColor(cv2.merge([morph,morph,morph]), cv2.COLOR_BGR2RGB)
-        seg_rgb = vis_pca
-        recon_rgb = cv2.cvtColor(cv2.merge([recon,recon,recon]), cv2.COLOR_BGR2RGB)
-        diff_rgb = cv2.cvtColor(cv2.merge([diff_vis,diff_vis,diff_vis]), cv2.COLOR_BGR2RGB)
+    #     # create montage for video: original | morph | seg(pca) | recon | diff
+    #     orig_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    #     morph_rgb = cv2.cvtColor(cv2.merge([morph,morph,morph]), cv2.COLOR_BGR2RGB)
+    #     seg_rgb = vis_pca
+    #     recon_rgb = cv2.cvtColor(cv2.merge([recon,recon,recon]), cv2.COLOR_BGR2RGB)
+    #     diff_rgb = cv2.cvtColor(cv2.merge([diff_vis,diff_vis,diff_vis]), cv2.COLOR_BGR2RGB)
 
-        # resize all to same height
-        target_h = 256
-        def resize_keep(img_in):
-            h0, w0 = img_in.shape[:2]
-            scale = target_h / float(h0)
-            return cv2.resize(img_in, (int(w0*scale), target_h))
-        tiles = [resize_keep(x) for x in [orig_rgb, morph_rgb, seg_rgb, recon_rgb, diff_rgb]]
-        montage = np.hstack(tiles)
-        montage_bgr = cv2.cvtColor(montage, cv2.COLOR_RGB2BGR)
-        video_frames.append(montage_bgr)
+    #     # resize all to same height
+    #     target_h = 256
+    #     def resize_keep(img_in):
+    #         h0, w0 = img_in.shape[:2]
+    #         scale = target_h / float(h0)
+    #         return cv2.resize(img_in, (int(w0*scale), target_h))
+    #     tiles = [resize_keep(x) for x in [orig_rgb, morph_rgb, seg_rgb, recon_rgb, diff_rgb]]
+    #     montage = np.hstack(tiles)
+    #     montage_bgr = cv2.cvtColor(montage, cv2.COLOR_RGB2BGR)
+    #     video_frames.append(montage_bgr)
 
-    # Save video
-    video_path = os.path.join(OUTPUT_DIR, "presentation.mp4")
-    print(f"Writing video to {video_path} ...")
-    writer = imageio.get_writer(video_path, fps=VIDEO_FPS)
-    for fr in video_frames:
-        # imageio expects RGB
-        writer.append_data(cv2.cvtColor(fr, cv2.COLOR_BGR2RGB))
-    writer.close()
-    print("Done. Outputs saved in", OUTPUT_DIR)
+    # # Save video
+    # video_path = os.path.join(OUTPUT_DIR, "presentation.mp4")
+    # print(f"Writing video to {video_path} ...")
+    # writer = imageio.get_writer(video_path, fps=VIDEO_FPS)
+    # for fr in video_frames:
+    #     # imageio expects RGB
+    #     writer.append_data(cv2.cvtColor(fr, cv2.COLOR_BGR2RGB))
+    # writer.close()
+    # print("Done. Outputs saved in", OUTPUT_DIR)
 
 if __name__ == "__main__":
     process_and_save_all()
