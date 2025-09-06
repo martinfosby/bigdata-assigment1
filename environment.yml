@@ -1,0 +1,12 @@
+name: bigdata2025
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - openpyxl
+  - opencv
+  - jupyter
