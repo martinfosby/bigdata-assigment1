@@ -38,7 +38,7 @@ import pydicom
 INPUT_ZIP = "Harnverhalt2.zip"
 INPUT_DIR = "Harnverhalt2"
 OUTPUT_DIR = "output"
-K = 5
+K = 3
 PCA_COMPONENTS = 0.95  # or int like 50; use float for explained variance ratio
 VIDEO_FPS = 1
 # ----------------------------
@@ -48,6 +48,7 @@ os.makedirs(os.path.join(OUTPUT_DIR, "originals"), exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "preprocessed"), exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "morph"), exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "segmented"), exist_ok=True)
+os.makedirs(os.path.join(OUTPUT_DIR, "segmented-pca"), exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "pca_recon"), exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "diff"), exist_ok=True)
 
@@ -132,34 +133,23 @@ def morphological_enhancement(gray):
 # use kmeans to cluster the images. 
 # Apply kmeans clustering to segment the medical images into different regions (e.g., tumor vs. non-tumor regions). 
 # Choose a reasonable number of clusters (e.g., k=3 or k=5).
-def segment_kmeans(image_gray, k=3, use_pca=False, pca_model=None):
+def segment_kmeans(image_gray, k=3, use_pca=False):
     pixels = image_gray.reshape(-1, 1).astype(np.float32)
     # Apply K-means clustering
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
     attempts = 10
     flags = cv2.KMEANS_RANDOM_CENTERS
 
+    if use_pca:
+        mean, eigenvectors = cv2.PCACompute(pixels, mean=None, eigenvectors=None, maxComponents=1)
+        pixels = cv2.PCAProject(pixels, mean, eigenvectors)
     retval, labels, centers = cv2.kmeans(np.float32(pixels), k, None, criteria, attempts, flags)
-
     centers = np.uint8(centers)
     segmented_image = centers[labels.flatten()]
     segmented_image = segmented_image.reshape(image_gray.shape)
 
-    return segmented_image, None
+    return segmented_image
     
-
-# Visualize the clustered images by colouring the segments based on the cluster labels. 
-# Improve your results using PCA-
-def colorize_labels(labels_img):
-    # produce color image from label map
-    h,w = labels_img.shape
-    labels = np.unique(labels_img)
-    out = np.zeros((h,w,3), dtype=np.uint8)
-    cmap = plt.cm.get_cmap("tab10", len(labels))
-    for i,lab in enumerate(labels):
-        color = np.array([int(255*x) for x in cmap(i)[:3]], dtype=np.uint8)
-        out[labels_img==lab] = color
-    return out
 
 def pca_reconstruct_image(image_gray, n_components=PCA_COMPONENTS):
     # Flatten image as pixels (h*w) x 1 and do PCA reconstruction across pixels features.
@@ -222,16 +212,12 @@ def process_and_save_all():
         cv2.imwrite(os.path.join(OUTPUT_DIR, "morph", name + "_morph.png"), morph)
 
         # segmentation without PCA
-        # labels_no_pca, model_no = segment_kmeans(morph, k=K, use_pca=False)
-        segmented_image, _ = segment_kmeans(morph, k=K, use_pca=False)
+        segmented_image = segment_kmeans(morph, k=K, use_pca=False)
         cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_nopca.png"), segmented_image)
-        # vis_no_pca = colorize_labels(labels_no_pca)
-        # cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_nopca.png"), vis_no_pca[:,:,::-1])  # BGR
 
-        # # segmentation with PCA applied to features
-        # labels_pca, pca_model = segment_kmeans(morph, k=K, use_pca=True, pca_model=None)
-        # vis_pca = colorize_labels(labels_pca)
-        # cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_pca.png"), vis_pca[:,:,::-1])
+        # segmentation with PCA applied to features
+        segmented_image_pca = segment_kmeans(morph, k=K, use_pca=True)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented-pca", name + f"_seg_k{K}_pca.png"), segmented_image_pca)
 
     #     # PCA reconstruction
     #     recon, pca_fit = pca_reconstruct_image(morph, n_components=PCA_COMPONENTS)
