@@ -3,7 +3,8 @@
 # Display the original images. Apply morphological operations of your choice to enhance your results. 
 # use kmeans to cluster the images. Apply kmeans clustering to segment the medical images into different regions (e.g., tumor vs. non-tumor regions). 
 # Choose a reasonable number of clusters (e.g., k=3 or k=5).
-# Visualize the clustered images by colouring the segments based on the cluster labels. Improve your results using PCA-
+# Visualize the clustered images by colouring the segments based on the cluster labels. 
+# Improve your results using PCA-
 
 # Reconstruct the images from the reduced PCA representation and visualize the reconstruction quality.
 # Compare the reconstructed images to the original ones and discuss the trade-off between dimensionality reduction and image quality. 
@@ -162,6 +163,8 @@ def segment_kmeans(image_gray, k=3, use_pca=False, max_components=1):
 
     return segmented_image, labels, centers
 
+
+# Reconstruct the images from the reduced PCA representation and visualize the reconstruction quality.
 def pca_reconstruct_image(image_gray, labels, centers, mean, eigenvectors):
     # Map centers back to original space
     centers = cv2.PCABackProject(centers, mean, eigenvectors)
@@ -203,12 +206,12 @@ def process_and_save_all():
         reconstructed_image_pca = pca_reconstruct_image(morph, labels_pca, centers_pca, mean=mean_pca, eigenvectors=eigenvectors_pca)
         cv2.imwrite(os.path.join(OUTPUT_DIR, "pca_recon", name + f"_recon_k{K}_pca_com{PCA_COMPONENTS}.png"), reconstructed_image_pca)
 
-        
-    #     # difference image
-    #     diff = cv2.absdiff(gray, recon)
-    #     # scale diff for visibility
-    #     diff_vis = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX)
-    #     cv2.imwrite(os.path.join(OUTPUT_DIR, "diff", name + f"_diff.png"), diff_vis)
+
+        # difference image
+        diff = cv2.absdiff(gray, reconstructed_image_pca)
+        # scale diff for visibility
+        diff_vis = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "diff", name + f"_diff.png"), diff_vis)
 
     #     # create montage for video: original | morph | seg(pca) | recon | diff
     #     orig_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
