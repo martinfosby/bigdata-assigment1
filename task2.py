@@ -1,11 +1,13 @@
 # 2) Harnverhalt. Load the medical images for harnverhalt2 using OpenCV. Harnverhalt2.zipLast ned Harnverhalt2.zip
 # Convert the images to grayscale and normalize the pixel values (0-255).
 # Display the original images. Apply morphological operations of your choice to enhance your results. 
-# use kmeans to cluster the images. Apply kmeans clustering to segment the medical images into different regions (e.g., tumor vs. non-tumor regions). Choose a reasonable number of clusters (e.g., k=3 or k=5).
+# use kmeans to cluster the images. Apply kmeans clustering to segment the medical images into different regions (e.g., tumor vs. non-tumor regions). 
+# Choose a reasonable number of clusters (e.g., k=3 or k=5).
 # Visualize the clustered images by colouring the segments based on the cluster labels. Improve your results using PCA-
 
 # Reconstruct the images from the reduced PCA representation and visualize the reconstruction quality.
-# Compare the reconstructed images to the original ones and discuss the trade-off between dimensionality reduction and image quality. Calculate the difference images and display the results. Create a presentation video for your results or arrange a meeting with me to show your results
+# Compare the reconstructed images to the original ones and discuss the trade-off between dimensionality reduction and image quality. 
+# Calculate the difference images and display the results. Create a presentation video for your results or arrange a meeting with me to show your results
 
 """
 harnverhalt_pipeline.py
@@ -39,7 +41,7 @@ INPUT_ZIP = "Harnverhalt2.zip"
 INPUT_DIR = "Harnverhalt2"
 OUTPUT_DIR = "output"
 K = 3
-PCA_COMPONENTS = 0.95  # or int like 50; use float for explained variance ratio
+PCA_COMPONENTS = 1  # or int like 50; use float for explained variance ratio
 VIDEO_FPS = 1
 # ----------------------------
 
@@ -133,66 +135,44 @@ def morphological_enhancement(gray):
 # use kmeans to cluster the images. 
 # Apply kmeans clustering to segment the medical images into different regions (e.g., tumor vs. non-tumor regions). 
 # Choose a reasonable number of clusters (e.g., k=3 or k=5).
-def segment_kmeans(image_gray, k=3, use_pca=False):
+def segment_kmeans(image_gray, k=3, use_pca=False, max_components=1):
     pixels = image_gray.reshape(-1, 1).astype(np.float32)
-    # Apply K-means clustering
+
+    # K-means parameters
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
     attempts = 10
     flags = cv2.KMEANS_RANDOM_CENTERS
 
     if use_pca:
-        mean, eigenvectors = cv2.PCACompute(pixels, mean=None, eigenvectors=None, maxComponents=1)
+        # Compute PCA basis
+        mean, eigenvectors = cv2.PCACompute(pixels, mean=None, maxComponents=max_components)
+        # Project data into PCA space
         pixels = cv2.PCAProject(pixels, mean, eigenvectors)
+
+    # Apply k-means
     retval, labels, centers = cv2.kmeans(np.float32(pixels), k, None, criteria, attempts, flags)
+ 
+    # Convert to image
+    centers = np.uint8(centers)
+    segmented_image = centers[labels.flatten()]
+    segmented_image = segmented_image.reshape(image_gray.shape)
+
+    if use_pca:
+        return segmented_image, labels, centers, mean, eigenvectors
+
+    return segmented_image, labels, centers
+
+def pca_reconstruct_image(image_gray, labels, centers, mean, eigenvectors):
+    # Map centers back to original space
+    centers = cv2.PCABackProject(centers, mean, eigenvectors)
+
+    # Convert to image
     centers = np.uint8(centers)
     segmented_image = centers[labels.flatten()]
     segmented_image = segmented_image.reshape(image_gray.shape)
 
     return segmented_image
-    
 
-def pca_reconstruct_image(image_gray, n_components=PCA_COMPONENTS):
-    # Flatten image as pixels (h*w) x 1 and do PCA reconstruction across pixels features.
-    # Here more sensible is to break into patches or treat entire image as vector.
-    # We'll treat rows as samples, columns as features -> this keeps local structure.
-    imgf = image_gray.astype(np.float32) / 255.0
-    h,w = imgf.shape
-    # center rows
-    pca = PCA(n_components=n_components, svd_solver='full')
-    X = imgf.copy()
-    # either do PCA on rows or on flattened image. We'll use flattened approach:
-    Xflat = X.reshape(-1,1)  # (h*w, 1) trivial for grayscale -> PCA won't compress. So better to use patches.
-    # Use small patches (e.g., 8x8) to get meaningful PCA compression.
-    patch_size = 8
-    patches = []
-    coords = []
-    for y in range(0, h - patch_size + 1, patch_size):
-        for x in range(0, w - patch_size + 1, patch_size):
-            p = imgf[y:y+patch_size, x:x+patch_size].reshape(-1)
-            patches.append(p)
-            coords.append((y,x))
-    patches = np.array(patches)  # (n_patches, patch_size*patch_size)
-    pca = PCA(n_components=n_components, svd_solver='full')
-    patches_mean = patches.mean(axis=0)
-    patches_centered = patches - patches_mean
-    pca_fit = pca.fit(patches_centered)
-    proj = pca_fit.transform(patches_centered)
-    recon = pca_fit.inverse_transform(proj) + patches_mean
-    # Reconstruct image from patches (average overlaps if any)
-    recon_img = np.zeros_like(imgf)
-    weight = np.zeros_like(imgf)
-    idx = 0
-    for (y,x) in coords:
-        p = recon[idx].reshape(patch_size, patch_size)
-        recon_img[y:y+patch_size, x:x+patch_size] += p
-        weight[y:y+patch_size, x:x+patch_size] += 1.0
-        idx += 1
-    # for remaining edge areas not covered by patches, copy original
-    mask = weight > 0
-    recon_img[mask] = recon_img[mask] / weight[mask]
-    recon_img[~mask] = imgf[~mask]
-    recon_img = np.clip(recon_img*255.0, 0, 255).astype(np.uint8)
-    return recon_img, pca_fit
 
 def process_and_save_all():
     # ensure_unzip_or_dir()
@@ -212,17 +192,18 @@ def process_and_save_all():
         cv2.imwrite(os.path.join(OUTPUT_DIR, "morph", name + "_morph.png"), morph)
 
         # segmentation without PCA
-        segmented_image = segment_kmeans(morph, k=K, use_pca=False)
+        segmented_image, labels_nopca, centers_nopca = segment_kmeans(morph, k=K, use_pca=False)
         cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_nopca.png"), segmented_image)
 
         # segmentation with PCA applied to features
-        segmented_image_pca = segment_kmeans(morph, k=K, use_pca=True)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented-pca", name + f"_seg_k{K}_pca.png"), segmented_image_pca)
+        segmented_image_pca, labels_pca, centers_pca, mean_pca, eigenvectors_pca = segment_kmeans(morph, k=K, use_pca=True, max_components=PCA_COMPONENTS)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented-pca", name + f"_seg_k{K}_pca_com{PCA_COMPONENTS}.png"), segmented_image_pca)
 
-    #     # PCA reconstruction
-    #     recon, pca_fit = pca_reconstruct_image(morph, n_components=PCA_COMPONENTS)
-    #     cv2.imwrite(os.path.join(OUTPUT_DIR, "pca_recon", name + f"_recon_pc{PCA_COMPONENTS}.png"), recon)
+        # PCA reconstruction
+        reconstructed_image_pca = pca_reconstruct_image(morph, labels_pca, centers_pca, mean=mean_pca, eigenvectors=eigenvectors_pca)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "pca_recon", name + f"_recon_k{K}_pca_com{PCA_COMPONENTS}.png"), reconstructed_image_pca)
 
+        
     #     # difference image
     #     diff = cv2.absdiff(gray, recon)
     #     # scale diff for visibility
