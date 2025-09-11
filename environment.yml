@@ -10,3 +10,13 @@ dependencies:
   - openpyxl
   - opencv
   - jupyter
+  - flask
+  - pydicom
+  - scikit-image
+  - plotly
+  - trimesh
+  - scipy
+  - pillow
+  - pip
+  - pip:
+    - SimpleITK   
