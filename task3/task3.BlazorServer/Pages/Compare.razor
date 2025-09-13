@@ -1,0 +1,97 @@
+@page "/compare"
+@using Microsoft.AspNetCore.Components.Forms
+@using task3.Core.Models
+@inject PipelineService Pipeline
+
+<h2>Compare</h2>
+<div class="card">
+    <p>Upload two images and compare different segmentation methods side-by-side.</p>
+    <InputFile OnChange="OnFilesSelected" multiple />
+    <p>@(paths.Count==0 ? "No files yet." : $"{paths.Count} image(s) uploaded")</p>
+    @if (!string.IsNullOrEmpty(uploadError))
+    {
+        <p style="color:#ff6b6b">@uploadError</p>
+    }
+
+    <div class="grid" style="margin-top:10px">
+        <div>
+            <h3>Left</h3>
+            <select @bind="leftSeg">
+                <option value="threshold">Threshold (Otsu)</option>
+                <option value="regiongrowing">Region Growing</option>
+                <option value="watershed">Watershed</option>
+            </select>
+            <button @onclick="RunLeft" disabled="@(paths.Count==0)">Run Left</button>
+            @if (left is not null)
+            {
+                <div class="imgpane">
+                    <div class="overlay">
+                        <img src="@left.OriginalDataUrl" />
+                        @if (!string.IsNullOrEmpty(left.OverlayDataUrl))
+                        {
+                            <img class="overlay-top" src="@left.OverlayDataUrl" />
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+        <div>
+            <h3>Right</h3>
+            <select @bind="rightSeg">
+                <option value="threshold">Threshold (Otsu)</option>
+                <option value="regiongrowing">Region Growing</option>
+                <option value="watershed">Watershed</option>
+            </select>
+            <button @onclick="RunRight" disabled="@(paths.Count==0)">Run Right</button>
+            @if (right is not null)
+            {
+                <div class="imgpane">
+                    <div class="overlay">
+                        <img src="@right.OriginalDataUrl" />
+                        @if (!string.IsNullOrEmpty(right.OverlayDataUrl))
+                        {
+                            <img class="overlay-top" src="@right.OverlayDataUrl" />
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    List<string> paths = new();
+    string? uploadError;
+
+    string leftSeg = "threshold", rightSeg = "watershed";
+    PipelineResult? left, right;
+
+    async Task OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var saved = await Pipeline.SaveUploadsAsync(
+                e.GetMultipleFiles().Select(f => (f.Name, (Stream)f.OpenReadStream()))
+            );
+            paths = saved.ToList();
+            uploadError = null;
+        }
+        catch (Exception ex)
+        {
+            uploadError = ex.Message;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void RunLeft()
+    {
+        left = Pipeline.RunPipeline(paths.First(),
+            new PipelineParams(false, 1, "kmeans", 3, leftSeg, 15));
+    }
+
+    void RunRight()
+    {
+        right = Pipeline.RunPipeline(paths.Last(),
+            new PipelineParams(false, 1, "kmeans", 3, rightSeg, 15));
+    }
+}

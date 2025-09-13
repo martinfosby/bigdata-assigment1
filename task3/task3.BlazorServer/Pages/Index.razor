@@ -1,0 +1,103 @@
+@page "/"
+@using Microsoft.AspNetCore.Components.Forms
+@using task3.Core.Models
+@inject PipelineService Pipeline
+
+<h2>Pipeline</h2>
+<div class="card">
+    <div class="grid">
+        <div>
+            <h3>1) Upload dataset</h3>
+            <InputFile OnChange="OnFilesSelected" multiple />
+            <p>@(uploaded.Count==0 ? "No files yet." : $"{uploaded.Count} image(s) uploaded")</p>
+            @if (!string.IsNullOrEmpty(uploadError))
+            {
+                <p style="color:#ff6b6b">@uploadError</p>
+            }
+
+            <h3>2) Configure</h3>
+            <label><input type="checkbox" @bind="usePca" /> Use PCA (toy, intensity)</label>
+            <label>PCA components
+                <input type="number" min="1" max="3" @bind="pcaComponents" />
+            </label>
+            <label>Segmentation
+                <select @bind="segmentation">
+                    <option value="threshold">Threshold (Otsu)</option>
+                    <option value="regiongrowing">Region Growing</option>
+                    <option value="watershed">Watershed (markers auto)</option>
+                </select>
+            </label>
+            <label>K (clusters, also seeds) <input type="number" min="2" max="8" @bind="k" /></label>
+            <label>RegionGrowing tolerance <input type="number" min="1" max="50" @bind="rgTolerance" /></label>
+            <br />
+            <button @onclick="Run" disabled="@(!uploaded.Any())">Run on first image</button>
+        </div>
+        <div>
+            <h3>3) Result</h3>
+            @if (result is null)
+            {
+                <p>Run the pipeline to see output.</p>
+            }
+            else
+            {
+                <div class="imgpane">
+                    <div class="overlay">
+                        <img src="@result.OriginalDataUrl" />
+                        @if (!string.IsNullOrEmpty(result.OverlayDataUrl))
+                        {
+                            <img class="overlay-top" src="@result.OverlayDataUrl" />
+                        }
+                    </div>
+                </div>
+                <p><small>Overlay saved: @result.LabelsPngPath</small></p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    List<string> uploaded = new();
+    string? uploadError;
+
+    bool usePca = false;
+    int pcaComponents = 1;
+    string segmentation = "threshold";
+    int k = 3;
+    int rgTolerance = 15;
+
+    PipelineResult? result;
+
+    async Task OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            uploaded.Clear();
+
+            // Files are small, default stream cap is fine.
+            var saved = await Pipeline.SaveUploadsAsync(
+                e.GetMultipleFiles().Select(f => (f.Name, (Stream)f.OpenReadStream()))
+            );
+
+            uploaded.AddRange(saved);
+            uploadError = null;
+        }
+        catch (Exception ex)
+        {
+            uploadError = ex.Message;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void Run()
+    {
+        var p = new PipelineParams(
+            UsePca: usePca,
+            PcaComponents: pcaComponents,
+            Clustering: "kmeans",
+            K: k,
+            Segmentation: segmentation,
+            RegionGrowingTolerance: rgTolerance
+        );
+        result = Pipeline.RunPipeline(uploaded.First(), p);
+    }
+}
