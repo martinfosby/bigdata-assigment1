@@ -40,7 +40,7 @@ import pydicom
 # ---------- CONFIG ----------
 INPUT_ZIP = "Harnverhalt2.zip"
 INPUT_DIR = "Harnverhalt2"
-OUTPUT_DIR = "output"
+OUTPUT_DIR = "./task2/output"
 K = 3
 PCA_COMPONENTS = 1  # or int like 50; use float for explained variance ratio
 VIDEO_FPS = 1
@@ -54,6 +54,7 @@ os.makedirs(os.path.join(OUTPUT_DIR, "segmented"), exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "segmented-pca"), exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "pca_recon"), exist_ok=True)
 os.makedirs(os.path.join(OUTPUT_DIR, "diff"), exist_ok=True)
+os.makedirs(os.path.join(OUTPUT_DIR, "montage"), exist_ok=True)
 
 def ensure_unzip_or_dir():
     # If zip exists, extract it
@@ -98,23 +99,21 @@ def load_images_from_dir():
 
 # Convert the images to grayscale and normalize the pixel values (0-255).
 def to_grayscale_and_normalize(img):
-    '''
-    Convert to gray and normalize to 0-255 uint8
-    '''
+    """
+    Convert to grayscale and normalize to 0-255 uint8.
+    """
     # Convert to grayscale if needed
     if len(img.shape) != 2:
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     else:
         gray = img
 
-    # Convert to float32 for normalization
-    g = gray.astype(np.float32)
-
     # Normalize to 0-255
-    g = 255 * (g - g.min()) / (g.max() - g.min() + 1e-9)
+    gray_norm = cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX)
 
-    # convert back to uint8
-    return g.astype(np.uint8)
+    # Convert to uint8
+    return gray_norm.astype(np.uint8)
+
 
 # Display the original images. Apply morphological operations of your choice to enhance your results. 
 def morphological_enhancement(gray):
@@ -152,7 +151,7 @@ def segment_kmeans(image_gray, k=3, use_pca=False, max_components=1):
 
     # Apply k-means
     retval, labels, centers = cv2.kmeans(np.float32(pixels), k, None, criteria, attempts, flags)
- 
+    
     # Convert to image
     centers = np.uint8(centers)
     segmented_image = centers[labels.flatten()]
@@ -180,10 +179,9 @@ def pca_reconstruct_image(image_gray, labels, centers, mean, eigenvectors):
 def process_and_save_all():
     # ensure_unzip_or_dir()
     imgs = load_images_from_dir()
-    # video_frames = []
+    video_frames = []
     for path, img in tqdm(imgs, desc="Processing images"):
         name = os.path.splitext(os.path.basename(path))[0]
-        # save original (converted BGR -> RGB for matplotlib)
         cv2.imwrite(os.path.join(OUTPUT_DIR, "originals", name + "_orig.png"), img)
 
         # preprocess: gray + normalize
@@ -195,51 +193,82 @@ def process_and_save_all():
         cv2.imwrite(os.path.join(OUTPUT_DIR, "morph", name + "_morph.png"), morph)
 
         # segmentation without PCA
-        segmented_image, labels_nopca, centers_nopca = segment_kmeans(morph, k=K, use_pca=False)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_nopca.png"), segmented_image)
+        seg_img, labels_nopca, centers_nopca = segment_kmeans(morph, k=K, use_pca=False)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented", name + f"_seg_k{K}_nopca.png"), seg_img)
 
         # segmentation with PCA applied to features
-        segmented_image_pca, labels_pca, centers_pca, mean_pca, eigenvectors_pca = segment_kmeans(morph, k=K, use_pca=True, max_components=PCA_COMPONENTS)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented-pca", name + f"_seg_k{K}_pca_com{PCA_COMPONENTS}.png"), segmented_image_pca)
+        seg_img_pca, labels_pca, centers_pca, mean_pca, eigenvectors_pca = segment_kmeans(morph, k=K, use_pca=True, max_components=PCA_COMPONENTS)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "segmented-pca", name + f"_seg_k{K}_pca_com{PCA_COMPONENTS}.png"), seg_img_pca)
 
         # PCA reconstruction
-        reconstructed_image_pca = pca_reconstruct_image(morph, labels_pca, centers_pca, mean=mean_pca, eigenvectors=eigenvectors_pca)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "pca_recon", name + f"_recon_k{K}_pca_com{PCA_COMPONENTS}.png"), reconstructed_image_pca)
+        recon = pca_reconstruct_image(morph, labels_pca, centers_pca, mean=mean_pca, eigenvectors=eigenvectors_pca)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "pca_recon", name + f"_recon_k{K}_pca_com{PCA_COMPONENTS}.png"), recon)
 
 
         # difference image
-        diff = cv2.absdiff(gray, reconstructed_image_pca)
+        diff = cv2.absdiff(gray, recon)
         # scale diff for visibility
         diff_vis = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX)
         cv2.imwrite(os.path.join(OUTPUT_DIR, "diff", name + f"_diff.png"), diff_vis)
 
-    #     # create montage for video: original | morph | seg(pca) | recon | diff
-    #     orig_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    #     morph_rgb = cv2.cvtColor(cv2.merge([morph,morph,morph]), cv2.COLOR_BGR2RGB)
-    #     seg_rgb = vis_pca
-    #     recon_rgb = cv2.cvtColor(cv2.merge([recon,recon,recon]), cv2.COLOR_BGR2RGB)
-    #     diff_rgb = cv2.cvtColor(cv2.merge([diff_vis,diff_vis,diff_vis]), cv2.COLOR_BGR2RGB)
+        # create montage for video: original | morph | seg(pca) | recon | diff
+        orig_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        gray_rgb = cv2.cvtColor(cv2.merge([gray,gray,gray]), cv2.COLOR_BGR2RGB)
+        morph_rgb = cv2.cvtColor(cv2.merge([morph,morph,morph]), cv2.COLOR_BGR2RGB)
+        seg_nopca_rgb = cv2.cvtColor(cv2.merge([seg_img,seg_img,seg_img]), cv2.COLOR_BGR2RGB)
+        seg_pca_rgb = cv2.cvtColor(cv2.merge([seg_img_pca,seg_img_pca,seg_img_pca]), cv2.COLOR_BGR2RGB)
+        recon_rgb = cv2.cvtColor(cv2.merge([recon,recon,recon]), cv2.COLOR_BGR2RGB)
+        diff_rgb = cv2.cvtColor(cv2.merge([diff_vis,diff_vis,diff_vis]), cv2.COLOR_BGR2RGB)
 
-    #     # resize all to same height
-    #     target_h = 256
-    #     def resize_keep(img_in):
-    #         h0, w0 = img_in.shape[:2]
-    #         scale = target_h / float(h0)
-    #         return cv2.resize(img_in, (int(w0*scale), target_h))
-    #     tiles = [resize_keep(x) for x in [orig_rgb, morph_rgb, seg_rgb, recon_rgb, diff_rgb]]
-    #     montage = np.hstack(tiles)
-    #     montage_bgr = cv2.cvtColor(montage, cv2.COLOR_RGB2BGR)
-    #     video_frames.append(montage_bgr)
+        # resize all to same height
+        target_h = 256
+        def resize_keep(img_in):
+            h0, w0 = img_in.shape[:2]
+            scale = target_h / float(h0)
+            return cv2.resize(img_in, (int(w0*scale), target_h))
+        
+        def pad_to_width(img, target_w):
+            h, w = img.shape[:2]
+            if w == target_w:
+                return img
+            pad = np.zeros((h, target_w - w, 3), dtype=img.dtype)  # black padding
+            return np.hstack([img, pad])
+        
+        tiles = [resize_keep(x) for x in [gray_rgb, morph_rgb, seg_nopca_rgb]]
+        tiles2 = [resize_keep(x) for x in [seg_pca_rgb, recon_rgb, diff_rgb]]
+        montage1 = np.hstack(tiles)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "montage", name + "montage_1.png"), montage1)
+        montage2 = np.hstack(tiles2)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "montage", name + "montage_2.png"), montage2)
+        max_w = max(montage1.shape[1], montage2.shape[1])
+        montage1 = pad_to_width(montage1, max_w)
+        montage2 = pad_to_width(montage2, max_w)
+        montage = np.vstack([montage1, montage2])
+        montage_bgr = cv2.cvtColor(montage, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, "montage", name + "montage.png"), montage_bgr)
 
-    # # Save video
-    # video_path = os.path.join(OUTPUT_DIR, "presentation.mp4")
-    # print(f"Writing video to {video_path} ...")
-    # writer = imageio.get_writer(video_path, fps=VIDEO_FPS)
-    # for fr in video_frames:
-    #     # imageio expects RGB
-    #     writer.append_data(cv2.cvtColor(fr, cv2.COLOR_BGR2RGB))
-    # writer.close()
-    # print("Done. Outputs saved in", OUTPUT_DIR)
+
+        # add montage to video
+        video_frames.append(montage_bgr)
+
+    # pick a codec, e.g. MP4 with H.264
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  
+    video_path = os.path.join(OUTPUT_DIR, "presentation.mp4")
+
+    # Get size from the first montage frame
+    h, w = video_frames[0].shape[:2]
+
+    # Create writer
+    writer = cv2.VideoWriter(video_path, fourcc, VIDEO_FPS, (w, h))
+
+    # Write all frames
+    for fr in video_frames:
+        writer.write(fr)
+
+    # Finalize
+    writer.release()
+    print("Done. Outputs saved in", OUTPUT_DIR)
+
 
 if __name__ == "__main__":
     process_and_save_all()
