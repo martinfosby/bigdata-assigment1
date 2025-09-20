@@ -30,11 +30,6 @@ from glob import glob
 from tqdm import tqdm
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-import imageio
 import pydicom
 
 # ---------- CONFIG ----------
