@@ -30,6 +30,7 @@
   <div class="tab">
     <button class="tablinks active" onclick="openTab(event, 'SingleSeries')">Single Series</button>
     <button class="tablinks" onclick="openTab(event, 'Differential')">Differential Analysis</button>
+    <button class="tablinks" onclick="openTab(event, 'Video')">Video</button>
   </div>
   
   <!-- ========== SINGLE SERIES TAB ========== -->
@@ -82,9 +83,11 @@
   <div id="Differential" class="tabcontent">
     <h3>Upload Series A (Baseline)</h3>
     <input type="file" id="filesA" multiple />
+    <button id="uploadDiffBtnA">Upload Series A</button>
     
     <h3>Upload Series B (Follow-up)</h3>
     <input type="file" id="filesB" multiple />
+    <button id="uploadDiffBtnB">Upload Series B</button>
     <br><br>
     
     <h3>Differential Analysis Options</h3>
@@ -106,23 +109,77 @@
       n_clusters: <input type="number" id="diffNClusters" value="4" min="2" max="10" />
     </div>
     
-    <button id="uploadDiffBtn">Upload Files</button>
     <button id="runDiffBtn">Run Differential Analysis</button>
+  </div>
+
+  <!-- ========== VIDEO TAB ========== -->
+  <div id="Video" class="tabcontent" style="display:none;">
+    <h3>Upload Video</h3>
+    <input type="file" id="videoFile" accept=".mp4,.avi,.mov,.mkv" />
+    <button id="uploadVideoBtn">Upload Video</button>
+
+    <h3>Video Options</h3>
+    <div class="param-group">
+      Frame step: <input type="number" id="frame_step" value="1" min="1" max="10" />
+      Max frames: <input type="number" id="max_frames" value="200" min="2" max="2000" />
+      Resize width: <input type="number" id="resize_width" value="256" min="64" max="1024" />
+    </div>
+
+    <h3>Clustering Options (Video)</h3>
+    <div class="param-group">
+    Algorithm:
+      <select id="videoAlgorithm">
+        <option value="kmeans">KMeans</option>
+        <option value="dbscan">DBSCAN</option>
+        <option value="ward">Ward (Agglomerative)</option>
+        <option value="birch">BIRCH</option>
+        <option value="meanshift">Mean Shift</option>
+      </select>
+    </div>
+
+    <div class="param-group" id="videoKmeansParams">
+      n_clusters: <input type="number" id="video_n_clusters" value="5" min="2" max="20" />
+    </div>
+
+    <div class="param-group" id="videoDbscanParams" style="display:none;">
+      eps: <input type="number" id="video_eps" value="0.3" step="0.1" min="0.1" max="5.0" />
+      min_samples: <input type="number" id="video_min_samples" value="10" min="1" max="100" />
+    </div>
+
+    <div class="param-group">
+      Use supervoxels: <input type="checkbox" id="video_use_supervoxels" checked />
+      Supervoxel count: <input type="number" id="video_supervoxel_count" value="1000" min="100" max="10000" />
+    </div>
+
+    <div class="param-group">
+      Spatial weight: <input type="number" id="video_spatial_weight" value="0.01" step="0.01" min="0" max="1" />
+      Intensity weight: <input type="number" id="video_intensity_weight" value="1.0" step="0.1" min="0.1" max="10" />
+    </div>
+
+    <button id="runVideoBtn">Process Video (Differentials)</button>
   </div>
 
   <!-- ========== RESULTS ========== -->
   <div id="results">
     <h2>Results</h2>
+
     <div class="preview-section">
       <div class="preview-box" id="previewOrig"></div>
       <div class="preview-box" id="previewSeg"></div>
       <div class="preview-box" id="previewDiff"></div>
     </div>
-    
-    <div id="plotly3d"></div>
+
+    <div id="plotly3d">
+      <p>3D visualization will appear here after processing...</p>
+    </div>
     <div id="plotStats"></div>
 
-    
+    <!-- 🔹 NEW METRICS PANEL -->
+    <div id="metrics" style="margin-top:20px; padding:10px; background:#eef;"></div>
+
+    <!-- Clear button -->
+    <button id="clearBtn" style="margin-top:20px; background:red; color:white; padding:10px;">Clear All</button>
+
     <div id="discussion">
       <h3>Discussion / Interpretation</h3>
       <textarea id="discussion_text" rows="8" cols="80">

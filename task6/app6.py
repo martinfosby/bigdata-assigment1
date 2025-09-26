@@ -6,6 +6,8 @@ import io
 import random
 import numpy as np
 import base64
+import traceback
+import time
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
@@ -18,17 +20,25 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from skimage.measure import marching_cubes
 from scipy.ndimage import binary_dilation, binary_closing, label as cc_label
+from scipy.ndimage import median_filter
 
 try:
     import SimpleITK as sitk
     HAS_SITK = True
 except Exception:
     HAS_SITK = False
+    
+try:
+    import cv2
+    HAS_CV2 = True
+except Exception:
+    HAS_CV2 = False
 
 # ---- Config ----
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "tif", "tiff", "dcm", "zip"}
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "tif", "tiff", "dcm", "zip",
+                      "mp4", "avi", "mov", "mkv"}
 MAX_CONTENT = 500 * 1024 * 1024  # 500MB
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -107,9 +117,11 @@ def extract_zip(zip_path, extract_to):
         z.extractall(extract_to)
 
     files = []
+    exts = ['.dcm', '.png', '.jpg', '.jpeg', '.tif', '.tiff', '.mp4', '.avi', '.mov', '.mkv']
     for root, _, fnames in os.walk(extract_to):
         for f in fnames:
-            files.append(os.path.join(root, f))
+            if any(f.lower().endswith(ext) for ext in exts):
+                files.append(os.path.join(root, f))
     return files
 
 # ---- Registration ----
@@ -165,8 +177,6 @@ def compute_supervoxels(volume, n_segments=1000, compactness=0.1):
     vol_norm = (volume - volume.min()) / (volume.max() - volume.min() + 1e-12)
     return segmentation.slic(vol_norm, n_segments=n_segments, compactness=compactness,
                              channel_axis=None, start_label=0)
-
-# ... (all your imports and setup code remains the same)
 
 def cluster_volume(volume, algorithm='kmeans', n_clusters=5,
                    eps=0.3, min_samples=10, use_supervoxels=True,
@@ -247,7 +257,6 @@ def cluster_volume(volume, algorithm='kmeans', n_clusters=5,
         seg[mask.reshape(-1)] = labs
         return seg.reshape(volume.shape), mask, n_clusters
 
-
 # ---- Routes ----
 @app.route('/')
 def index():
@@ -267,8 +276,7 @@ def upload():
     for f in uploaded_files:
         if f.filename == '':
             continue
-        # only allow certain file extensions
-        allowed_exts = ('.dcm', '.png', '.jpg', '.jpeg', '.tif', '.tiff')
+        allowed_exts = ('.dcm', '.png', '.jpg', '.jpeg', '.tif', '.tiff', '.mp4', '.avi', '.mov', '.mkv')
         if not f.filename.lower().endswith(allowed_exts):
             continue
 
@@ -280,7 +288,6 @@ def upload():
         return jsonify({'success': False, 'error': 'No supported files uploaded'})
 
     return jsonify({'success': True, 'files': saved_files})
-
 
 @app.route('/process_series', methods=['POST'])
 def process_series():
@@ -297,6 +304,8 @@ def process_series():
     use_pca = bool(data.get('use_pca', False))
     pca_components = int(data.get('pca_components', 3))
 
+    start_time = time.time()  # ✅ start timer
+
     dcm_files = [f for f in files if f.lower().endswith('.dcm')]
     img_files = [f for f in files if not f.lower().endswith('.dcm')]
 
@@ -312,7 +321,7 @@ def process_series():
         vol = denoised_vol
     else:
         vol = denoise_bilateral(vol, sigma_color=0.05, sigma_spatial=1)
-
+        
     vol = (vol - vol.min()) / (vol.max() - vol.min() + 1e-12)
     seg, mask, actual_clusters = cluster_volume(
         vol, algorithm=algorithm, n_clusters=n_clusters, eps=eps,
@@ -320,6 +329,8 @@ def process_series():
         supervoxel_count=supervoxel_count, spatial_weight=spatial_weight,
         intensity_weight=intensity_weight, use_pca=use_pca, pca_components=pca_components
     )
+
+    runtime = time.time() - start_time  # ✅ stop timer
 
     mid = vol.shape[0] // 2
     orig_slice = (vol[mid] * 255).astype('uint8')
@@ -343,8 +354,120 @@ def process_series():
         'seg_path': seg_path,
         'shape': vol.shape, 
         'spacing': spacing,
-        'n_clusters': actual_clusters
+        'n_clusters': actual_clusters,
+        'runtime': runtime  # ✅ included
     })
+
+def load_video_as_diff_volume(video_path, frame_step=1, max_frames=200, resize_width=256):
+    if not HAS_CV2:
+        raise RuntimeError("OpenCV (cv2) not installed. Install opencv-python to enable video mode.")
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError(f"Cannot open video: {video_path}")
+
+    frames = []
+    count = 0
+    try:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            if count % frame_step == 0:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype('float32')
+                if resize_width and gray.shape[1] != resize_width:
+                    scale = resize_width / gray.shape[1]
+                    new_w = int(gray.shape[1] * scale)
+                    new_h = int(gray.shape[0] * scale)
+                    gray = cv2.resize(gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                frames.append(gray)
+            count += 1
+            if len(frames) >= max_frames:
+                break
+    finally:
+        cap.release()
+
+    if len(frames) < 2:
+        raise ValueError("Video too short after sampling (need at least 2 frames).")
+
+    frames = np.stack(frames, axis=0)
+    diff = np.abs(np.diff(frames, axis=0))
+    diff = (diff - diff.min()) / (diff.max() - diff.min() + 1e-12)
+    spacing = (1.0, 1.0, 1.0)
+    return diff, spacing
+
+@app.route('/process_video', methods=['POST'])
+def process_video():
+    data = request.json or {}
+    vids = data.get('files', [])
+    if not vids:
+        return jsonify({'success': False, 'error': 'No video provided'})
+
+    video_path = None
+    for p in vids:
+        if p.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
+            video_path = p
+            break
+    if not video_path:
+        return jsonify({'success': False, 'error': 'No supported video file in files'})
+
+    frame_step = int(data.get('frame_step', 1))
+    max_frames = int(data.get('max_frames', 200))
+    resize_width = int(data.get('resize_width', 256))
+
+    algorithm = data.get('algorithm', 'kmeans')
+    n_clusters = int(data.get('n_clusters', 5))
+    eps = float(data.get('eps', 0.3))
+    min_samples = int(data.get('min_samples', 10))
+    use_supervoxels = bool(data.get('use_supervoxels', True))
+    supervoxel_count = int(data.get('supervoxel_count', 1000))
+    spatial_weight = float(data.get('spatial_weight', 0.01))
+    intensity_weight = float(data.get('intensity_weight', 1.0))
+
+    start_time = time.time()  # ✅ start timer
+
+    try:
+        vol, spacing = load_video_as_diff_volume(video_path, frame_step, max_frames, resize_width)
+        vol = median_filter(vol, size=3)
+
+        seg, mask, actual_clusters = cluster_volume(
+            vol, algorithm=algorithm, n_clusters=n_clusters, eps=eps,
+            min_samples=min_samples, use_supervoxels=use_supervoxels,
+            supervoxel_count=supervoxel_count, spatial_weight=spatial_weight,
+            intensity_weight=intensity_weight
+        )
+
+        runtime = time.time() - start_time  # ✅ stop timer
+
+        mid = vol.shape[0] // 2
+        diff_slice = (vol[mid] * 255).astype('uint8')
+        seg_slice = seg[mid]
+
+        buf1, buf2 = io.BytesIO(), io.BytesIO()
+        ski_io.imsave(buf1, diff_slice, plugin='pil', format_str='PNG')
+        ski_io.imsave(buf2, ((seg_slice - seg_slice.min()) /
+                    (np.ptp(seg_slice)+1e-12)*255).astype('uint8'),
+                    plugin='pil', format_str='PNG')
+        buf1.seek(0); buf2.seek(0)
+        diff_b64 = base64.b64encode(buf1.read()).decode('utf-8')
+        seg_b64 = base64.b64encode(buf2.read()).decode('utf-8')
+
+        seg_path = os.path.join(tempfile.mkdtemp(dir=app.config['UPLOAD_FOLDER']), 'video_seg.npy')
+        np.save(seg_path, seg)
+
+        return jsonify({
+            'success': True,
+            'diff_slice': f'data:image/png;base64,{diff_b64}',
+            'seg_slice': f'data:image/png;base64,{seg_b64}',
+            'seg_path': seg_path,
+            'shape': vol.shape,
+            'spacing': spacing,
+            'n_clusters': actual_clusters,
+            'runtime': runtime  # ✅
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/process_differential', methods=['POST'])
 def process_differential():
@@ -356,12 +479,14 @@ def process_differential():
         algorithm = data.get('algorithm', 'kmeans')
         n_clusters = int(data.get('n_clusters', 5))
 
+        start_time = time.time()  # ✅ start timer
+
         dcm1 = [f for f in files1 if f.lower().endswith('.dcm')]
         dcm2 = [f for f in files2 if f.lower().endswith('.dcm')]
         v1, spacing1 = load_dicom_series_from_files(dcm1) if dcm1 else load_image_series(files1)
         v2, spacing2 = load_dicom_series_from_files(dcm2) if dcm2 else load_image_series(files2)
 
-        min_shape = tuple(min(a,b) for a,b in zip(v1.shape, v2.shape))
+        min_shape = tuple(min(a, b) for a, b in zip(v1.shape, v2.shape))
         v1, v2 = v1[:min_shape[0], :min_shape[1], :min_shape[2]], v2[:min_shape[0], :min_shape[1], :min_shape[2]]
 
         if do_register and HAS_SITK and all(dim >= 4 for dim in v1.shape):
@@ -369,32 +494,37 @@ def process_differential():
 
         v1 = (v1 - v1.mean()) / (v1.std() + 1e-12)
         v2 = (v2 - v2.mean()) / (v2.std() + 1e-12)
-        diff = v2 - v1
+        diff_vol = v2 - v1
 
-        seg, mask, actual_clusters = cluster_volume(diff, algorithm=algorithm, n_clusters=n_clusters)
+        seg, mask, actual_clusters = cluster_volume(diff_vol, algorithm=algorithm, n_clusters=n_clusters)
         seg_path = os.path.join(tempfile.mkdtemp(dir=app.config['UPLOAD_FOLDER']), 'diff_seg.npy')
         np.save(seg_path, seg)
 
-        mid = diff.shape[0] // 2
-        orig_slice = ((diff[mid] - diff[mid].min())/(np.ptp(diff[mid])+1e-12)*255).astype('uint8')
+        runtime = time.time() - start_time  # ✅ stop timer
+
+        mid = diff_vol.shape[0] // 2
+        orig_slice = ((diff_vol[mid] - diff_vol[mid].min()) / (np.ptp(diff_vol[mid]) + 1e-12) * 255).astype('uint8')
         seg_slice = seg[mid]
 
         buf, buf2 = io.BytesIO(), io.BytesIO()
         ski_io.imsave(buf, orig_slice, plugin='pil', format_str='PNG')
-        ski_io.imsave(buf2, ((seg_slice - seg_slice.min())/(np.ptp(seg_slice)+1e-12)*255).astype('uint8'),
+        ski_io.imsave(buf2, ((seg_slice - seg_slice.min()) / (np.ptp(seg_slice) + 1e-12) * 255).astype('uint8'),
                       plugin='pil', format_str='PNG')
         buf.seek(0); buf2.seek(0)
-        o_b64 = base64.b64encode(buf.read()).decode('utf-8')
-        s_b64 = base64.b64encode(buf2.read()).decode('utf-8')
+        diff_b64 = base64.b64encode(buf.read()).decode('utf-8')
+        seg_b64 = base64.b64encode(buf2.read()).decode('utf-8')
 
         return jsonify({
-            'success': True, 
-            'diff_slice': f'data:image/png;base64,{o_b64}',
-            'seg_slice': f'data:image/png;base64,{s_b64}', 
+            'success': True,
+            'diff_slice': f'data:image/png;base64,{diff_b64}',
+            'seg_slice': f'data:image/png;base64,{seg_b64}',
             'seg_path': seg_path,
-            'shape': diff.shape,
-            'n_clusters': actual_clusters
+            'shape': diff_vol.shape,
+            'spacing': spacing1,
+            'n_clusters': actual_clusters,
+            'runtime': runtime  # ✅
         })
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -408,30 +538,26 @@ def generate_3d_mesh():
     try:
         seg = np.load(seg_path)
         
-        # Generate random colors for each cluster (as RGB values between 0-1)
         unique_clusters = np.unique(seg)
         cluster_colors = {}
         for cid in unique_clusters:
-            if cid >= 0:  # Skip background
+            if cid >= 0:
                 cluster_colors[int(cid)] = [
-                    random.random(),  # R (0-1)
-                    random.random(),  # G (0-1)
-                    random.random(),  # B (0-1)
-                    0.8  # Alpha
+                    random.random(),
+                    random.random(),
+                    random.random(),
+                    0.8
                 ]
         
-        # Create point cloud data for each cluster
         point_clouds = []
         total_points = 0
         
         for cid in unique_clusters:
-            if cid < 0:  # Skip background
+            if cid < 0:
                 continue
                 
-            # Get coordinates of points in this cluster
             z_coords, y_coords, x_coords = np.where(seg == cid)
             
-            # Downsample if there are too many points for performance
             max_points_per_cluster = 5000
             if len(x_coords) > max_points_per_cluster:
                 indices = np.random.choice(len(x_coords), max_points_per_cluster, replace=False)
@@ -439,7 +565,6 @@ def generate_3d_mesh():
                 y_coords = y_coords[indices]
                 z_coords = z_coords[indices]
             
-            # Convert to lists
             x_list = x_coords.astype(int).tolist()
             y_list = y_coords.astype(int).tolist()
             z_list = z_coords.astype(int).tolist()
