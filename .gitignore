@@ -1,11 +1,9 @@
-"Harnverhalt2/" 
-"output/" 
-"Harnverhalt2/" 
-"output/" 
-<<<<<<< HEAD
-=======
-Harnverhalt2.zip
-Harnverhalt2
-output
-*dcm
->>>>>>> df2680461808889324b07107aeb19e10e20bdc5b
+# Ignore build/output folders
+output/
+Harnverhalt2/
+
+# Ignore compressed archives
+*.zip
+
+# Ignore DICOM medical image files
+*.dcm
