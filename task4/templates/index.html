@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Medical 3D Clustering</title>
+  <!-- FIXED: Updated Plotly to a specific version that supports 3D volume plots -->
+  <script src="https://cdn.plot.ly/plotly-3.1.0.min.js"></script>
+  <script src="/static/main.js"></script>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 20px; }
+    .col { display:inline-block; vertical-align:top; margin-right:20px; }
+    #results { margin-top:20px; }
+    .preview-section { display:flex; gap:40px; margin-top:20px; }
+    .preview-box { flex:1; }
+    img { max-width:100%; height:auto; border:1px solid #ddd; padding:4px; }
+    #plotly3d { margin: 20px 0; border: 1px solid #ccc; padding: 10px; min-height: 500px; }
+    .error { color: red; padding: 20px; border: 2px solid red; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <h1>Medical 3D Clustering & Segmentation</h1>
+  <p>Upload a DICOM series (multiple .dcm files) or a ZIP of images. You may upload two series for differential analysis.</p>
+
+  <div class="col">
+    <h3>Upload Series A</h3>
+    <input type="file" id="filesA" multiple />
+  </div>
+  <div class="col">
+    <h3>Upload Series B (for differential)</h3>
+    <input type="file" id="filesB" multiple />
+  </div>
+
+  <div style="clear:both"></div>
+
+  <h3>Clustering Options</h3>
+  Algorithm:
+  <select id="algorithm">
+    <option value="kmeans">KMeans</option>
+    <option value="dbscan">DBSCAN</option>
+    <option value="ward">Ward (Agglomerative)</option>
+    <option value="birch">BIRCH</option>
+  </select>
+  n_clusters: <input type="number" id="n_clusters" value="4" />
+  eps (DBSCAN): <input type="text" id="eps" value="0.3" />
+  min_samples (DBSCAN): <input type="number" id="min_samples" value="10" />
+  <br/>
+  Use supervoxels: <input type="checkbox" id="use_supervoxels" checked />
+  Supervoxel count: <input type="number" id="supervoxel_count" value="800" />
+  Spatial weight: <input type="text" id="spatial_weight" value="0.02" />
+  Intensity weight: <input type="text" id="intensity_weight" value="1.0" />
+  <br/>
+  <button id="uploadBtn">Upload Files</button>
+  <button id="runA">Run Series A</button>
+  <button id="runDiff">Run Differential (A vs B)</button>
+
+  <div id="results">
+    <h2>Results</h2>
+    <div class="preview-section">
+      <div class="preview-box" id="previewA"></div>
+      <div class="preview-box" id="previewSeg"></div>
+      <div class="preview-box" id="previewDiff"></div>
+    </div>
+    
+    <!-- 3D Visualization Area -->
+    <div id="plotly3d">
+      <p>3D visualization will appear here after processing...</p>
+    </div>
+    
+    <div id="discussion">
+      <h3>Discussion / Interpretation</h3>
+      <textarea id="discussion_text" rows="8" cols="80">
+Enter your interpretation and discussion here. Describe which clusters seem meaningful, potential artifacts, registration concerns, parameter effects, and next steps.
+      </textarea>
+    </div>
+  </div>
+</body>
+</html>

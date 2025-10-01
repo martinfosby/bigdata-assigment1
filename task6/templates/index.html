@@ -1,0 +1,196 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Medical 3D Clustering</title>
+
+  <!-- Plotly for 3D visualization -->
+  <script src="https://cdn.plot.ly/plotly-3.1.0.min.js"></script>
+
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 20px; }
+    .col { display:inline-block; vertical-align:top; margin-right:20px; }
+    #results { margin-top:20px; }
+    .preview-section { display:flex; gap:40px; margin-top:20px; }
+    .preview-box { flex:1; }
+    img { max-width:100%; height:auto; border:1px solid #ddd; padding:4px; }
+    #plotly3d { margin: 20px 0; border: 1px solid #ccc; padding: 10px; min-height: 500px; }
+    .error { color: red; padding: 20px; border: 2px solid red; margin: 20px 0; }
+    .tab { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; }
+    .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s; }
+    .tab button:hover { background-color: #ddd; }
+    .tab button.active { background-color: #ccc; }
+    .tabcontent { display: none; padding: 6px 12px; border: 1px solid #ccc; border-top: none; }
+    .param-group { margin: 10px 0; padding: 10px; border: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <h1>Medical 3D Clustering & Segmentation</h1>
+  
+  <div class="tab">
+    <button class="tablinks active" onclick="openTab(event, 'SingleSeries')">Single Series</button>
+    <button class="tablinks" onclick="openTab(event, 'Differential')">Differential Analysis</button>
+    <button class="tablinks" onclick="openTab(event, 'Video')">Video</button>
+  </div>
+  
+  <!-- ========== SINGLE SERIES TAB ========== -->
+  <div id="SingleSeries" class="tabcontent" style="display:block;">
+    <h3>Upload DICOM Series or Images</h3>
+    <input type="file" id="filesSingle" multiple />
+    <br><br>
+    
+    <h3>Clustering Options</h3>
+    <div class="param-group">
+      Algorithm:
+      <select id="algorithm">
+        <option value="kmeans">KMeans</option>
+        <option value="dbscan">DBSCAN</option>
+        <option value="ward">Ward (Agglomerative)</option>
+        <option value="birch">BIRCH</option>
+        <option value="meanshift">Mean Shift</option>
+      </select>
+    </div>
+    
+    <div class="param-group" id="kmeansParams">
+      n_clusters: <input type="number" id="n_clusters" value="5" min="2" max="20" />
+    </div>
+    
+    <div class="param-group" id="dbscanParams" style="display:none;">
+      eps: <input type="number" id="eps" value="0.3" step="0.1" min="0.1" max="5.0" />
+      min_samples: <input type="number" id="min_samples" value="10" min="1" max="100" />
+    </div>
+    
+    <div class="param-group">
+      Use supervoxels: <input type="checkbox" id="use_supervoxels" checked />
+      Supervoxel count: <input type="number" id="supervoxel_count" value="1000" min="100" max="10000" />
+    </div>
+    
+    <div class="param-group">
+      Spatial weight: <input type="number" id="spatial_weight" value="0.01" step="0.01" min="0" max="1" />
+      Intensity weight: <input type="number" id="intensity_weight" value="1.0" step="0.1" min="0.1" max="10" />
+    </div>
+    
+    <div class="param-group">
+      Use PCA: <input type="checkbox" id="use_pca" />
+      PCA components: <input type="number" id="pca_components" value="3" min="2" max="10" disabled />
+    </div>
+    
+    <button id="uploadSingleBtn">Upload Files</button>
+    <button id="runSingleBtn">Process Series</button>
+  </div>
+  
+  <!-- ========== DIFFERENTIAL TAB ========== -->
+  <div id="Differential" class="tabcontent">
+    <h3>Upload Series A (Baseline)</h3>
+    <input type="file" id="filesA" multiple />
+    <button id="uploadDiffBtnA">Upload Series A</button>
+    
+    <h3>Upload Series B (Follow-up)</h3>
+    <input type="file" id="filesB" multiple />
+    <button id="uploadDiffBtnB">Upload Series B</button>
+    <br><br>
+    
+    <h3>Differential Analysis Options</h3>
+    <div class="param-group">
+      Perform registration: <input type="checkbox" id="do_register" checked />
+    </div>
+    
+    <div class="param-group">
+      Algorithm:
+      <select id="diffAlgorithm">
+        <option value="kmeans">KMeans</option>
+        <option value="dbscan">DBSCAN</option>
+        <option value="ward">Ward (Agglomerative)</option>
+        <option value="birch">BIRCH</option>
+      </select>
+    </div>
+    
+    <div class="param-group">
+      n_clusters: <input type="number" id="diffNClusters" value="4" min="2" max="10" />
+    </div>
+    
+    <button id="runDiffBtn">Run Differential Analysis</button>
+  </div>
+
+  <!-- ========== VIDEO TAB ========== -->
+  <div id="Video" class="tabcontent" style="display:none;">
+    <h3>Upload Video</h3>
+    <input type="file" id="videoFile" accept=".mp4,.avi,.mov,.mkv" />
+    <button id="uploadVideoBtn">Upload Video</button>
+
+    <h3>Video Options</h3>
+    <div class="param-group">
+      Frame step: <input type="number" id="frame_step" value="1" min="1" max="10" />
+      Max frames: <input type="number" id="max_frames" value="200" min="2" max="2000" />
+      Resize width: <input type="number" id="resize_width" value="256" min="64" max="1024" />
+    </div>
+
+    <h3>Clustering Options (Video)</h3>
+    <div class="param-group">
+    Algorithm:
+      <select id="videoAlgorithm">
+        <option value="kmeans">KMeans</option>
+        <option value="dbscan">DBSCAN</option>
+        <option value="ward">Ward (Agglomerative)</option>
+        <option value="birch">BIRCH</option>
+        <option value="meanshift">Mean Shift</option>
+      </select>
+    </div>
+
+    <div class="param-group" id="videoKmeansParams">
+      n_clusters: <input type="number" id="video_n_clusters" value="5" min="2" max="20" />
+    </div>
+
+    <div class="param-group" id="videoDbscanParams" style="display:none;">
+      eps: <input type="number" id="video_eps" value="0.3" step="0.1" min="0.1" max="5.0" />
+      min_samples: <input type="number" id="video_min_samples" value="10" min="1" max="100" />
+    </div>
+
+    <div class="param-group">
+      Use supervoxels: <input type="checkbox" id="video_use_supervoxels" checked />
+      Supervoxel count: <input type="number" id="video_supervoxel_count" value="1000" min="100" max="10000" />
+    </div>
+
+    <div class="param-group">
+      Spatial weight: <input type="number" id="video_spatial_weight" value="0.01" step="0.01" min="0" max="1" />
+      Intensity weight: <input type="number" id="video_intensity_weight" value="1.0" step="0.1" min="0.1" max="10" />
+    </div>
+
+    <button id="runVideoBtn">Process Video (Differentials)</button>
+  </div>
+
+  <!-- ========== RESULTS ========== -->
+  <div id="results">
+    <h2>Results</h2>
+
+    <div class="preview-section">
+      <div class="preview-box" id="previewOrig"></div>
+      <div class="preview-box" id="previewSeg"></div>
+      <div class="preview-box" id="previewDiff"></div>
+    </div>
+
+    <div id="plotly3d">
+      <p>3D visualization will appear here after processing...</p>
+    </div>
+    <div id="plotStats"></div>
+
+    <!-- 🔹 NEW METRICS PANEL -->
+    <div id="metrics" style="margin-top:20px; padding:10px; background:#eef;"></div>
+
+    <!-- Clear button -->
+    <button id="clearBtn" style="margin-top:20px; background:red; color:white; padding:10px;">Clear All</button>
+
+    <div id="discussion">
+      <h3>Discussion / Interpretation</h3>
+      <textarea id="discussion_text" rows="8" cols="80">
+Enter your interpretation and discussion here. Describe which clusters seem meaningful, potential artifacts, registration concerns, parameter effects, and next steps.
+      </textarea>
+    </div>
+  </div>
+
+  <!-- ========================== -->
+  <!-- Load your main JavaScript  -->
+  <!-- ========================== -->
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>

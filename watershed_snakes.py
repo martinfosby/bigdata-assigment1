@@ -55,11 +55,11 @@ def watershed_segmentation(gray, save_path):
         if not success:
             # fallback: bruk matplotlib hvis cv2 feiler
             plt.imsave(save_path, img_color)
-            print(f"⚠️ cv2.imwrite feilet, men plt.imsave lagret {save_path}")
+            print(f"cv2.imwrite feilet, men plt.imsave lagret {save_path}")
         else:
-            print(f"✅ Lagret {save_path}")
+            print(f"Lagret {save_path}")
     except Exception as e:
-        print(f"❌ Kunne ikke lagre {save_path}: {e}")
+        print(f"Kunne ikke lagre {save_path}: {e}")
 
     return img_color
 
@@ -80,7 +80,7 @@ def snakes_segmentation(gray, save_path):
     plt.savefig(save_path)
     plt.close(fig)
 
-    print(f"✅ Lagret {save_path}")
+    print(f"Lagret {save_path}")
     return snake
 
 # ---------- MAIN ----------
