@@ -1,0 +1,147 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.BlazorServer\\task3.BlazorServer.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.BlazorServer\\task3.BlazorServer.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.BlazorServer\\task3.BlazorServer.csproj",
+        "projectName": "task3.BlazorServer",
+        "projectPath": "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.BlazorServer\\task3.BlazorServer.csproj",
+        "packagesPath": "C:\\Users\\dat_9\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.BlazorServer\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\dat_9\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.Core\\task3.Core.csproj": {
+                "projectPath": "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.Core\\task3.Core.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.200"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.203/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.Core\\task3.Core.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.Core\\task3.Core.csproj",
+        "projectName": "task3.Core",
+        "projectPath": "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.Core\\task3.Core.csproj",
+        "packagesPath": "C:\\Users\\dat_9\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\dat_9\\Documents\\UIT\\1. Semester\\StoreDatasystemer\\bigdata-assigment1\\task3\\task3.Core\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\dat_9\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.200"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "MathNet.Numerics": {
+              "target": "Package",
+              "version": "[5.0.0, )"
+            },
+            "SixLabors.ImageSharp": {
+              "target": "Package",
+              "version": "[3.1.4, )"
+            },
+            "fo-dicom": {
+              "target": "Package",
+              "version": "[5.0.4, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.203/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
