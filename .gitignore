@@ -7,3 +7,5 @@ Harnverhalt2/
 
 # Ignore DICOM medical image files
 *.dcm
+
+.vs/

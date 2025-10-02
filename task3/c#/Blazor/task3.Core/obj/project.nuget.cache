@@ -1,0 +1,89 @@
+{
+  "version": 2,
+  "dgSpecHash": "Ri6f0QFCMU8=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\marfo\\.nuget\\packages\\communitytoolkit.highperformance\\8.2.0\\communitytoolkit.highperformance.8.2.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\fo-dicom\\5.1.0\\fo-dicom.5.1.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\mathnet.numerics\\5.0.0\\mathnet.numerics.5.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\6.0.0\\microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\microsoft.bcl.hashcode\\1.1.1\\microsoft.bcl.hashcode.1.1.1.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\microsoft.extensions.dependencyinjection\\6.0.1\\microsoft.extensions.dependencyinjection.6.0.1.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\6.0.0\\microsoft.extensions.dependencyinjection.abstractions.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\microsoft.extensions.logging\\6.0.0\\microsoft.extensions.logging.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\6.0.0\\microsoft.extensions.logging.abstractions.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\microsoft.extensions.options\\6.0.0\\microsoft.extensions.options.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\microsoft.extensions.primitives\\6.0.0\\microsoft.extensions.primitives.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\sixlabors.imagesharp\\3.1.4\\sixlabors.imagesharp.3.1.4.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\system.diagnostics.diagnosticsource\\6.0.0\\system.diagnostics.diagnosticsource.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\system.runtime.compilerservices.unsafe\\6.0.0\\system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\system.text.encoding.codepages\\6.0.0\\system.text.encoding.codepages.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\system.text.encodings.web\\6.0.0\\system.text.encodings.web.6.0.0.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\system.text.json\\6.0.7\\system.text.json.6.0.7.nupkg.sha512",
+    "C:\\Users\\marfo\\.nuget\\packages\\system.threading.channels\\6.0.0\\system.threading.channels.6.0.0.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "message": "task3.Core depends on fo-dicom (>= 5.0.4) but fo-dicom 5.0.4 was not found. fo-dicom 5.1.0 was resolved instead.",
+      "projectPath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "libraryId": "fo-dicom",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.4 has a known high severity vulnerability, https://github.com/advisories/GHSA-2cmq-823j-5qj8",
+      "projectPath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    },
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.4 has a known high severity vulnerability, https://github.com/advisories/GHSA-63p8-c4ww-9cg7",
+      "projectPath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.4 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-qxrv-gp6x-rc23",
+      "projectPath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.4 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc",
+      "projectPath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\Users\\marfo\\OneDrive - UiT Office 365\\datateknikk\\ehelse\\bigdata-assigment1\\task3\\c#\\Blazor\\task3.Core\\task3.Core.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
+}
