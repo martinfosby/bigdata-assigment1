@@ -40,16 +40,24 @@
             }
             else
             {
-                <div class="imgpane">
-                    <div class="overlay">
+                <div class="grid">
+                    <div>
+                        <h4> Original Image </h4>
                         <img src="@result.OriginalDataUrl" />
+                        <p><small>Original saved: @result.OriginalDataUrl</small></p>
+
+                    </div>
+                    <div>
+                        <h4>Segmented Image</h4>
                         @if (!string.IsNullOrEmpty(result.OverlayDataUrl))
                         {
                             <img class="overlay-top" src="@result.OverlayDataUrl" />
                         }
+                        <p><small>Overlay saved: @result.LabelsPngPath</small></p>
+                        <p><small>Overlay saved: @result.OverlayDataUrl</small></p>
+
                     </div>
                 </div>
-                <p><small>Overlay saved: @result.LabelsPngPath</small></p>
             }
         </div>
     </div>
@@ -98,6 +106,6 @@
             Segmentation: segmentation,
             RegionGrowingTolerance: rgTolerance
         );
-        result = Pipeline.RunPipeline(uploaded.First(), p);
+        result = Pipeline.RunPipelineMat(uploaded.First(), p);
     }
 }

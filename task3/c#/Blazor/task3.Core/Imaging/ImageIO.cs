@@ -1,8 +1,9 @@
-using System;
-using System.IO;
+using OpenCvSharp;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using System;
+using System.IO;
 
 namespace task3.Core.Imaging;
 
@@ -11,7 +12,6 @@ public static class ImageIO
     public static byte[,] LoadGrayscale(string path)
     {
         using var img = Image.Load(path);
-        img.Mutate(x => x.Grayscale());
         var g = img.CloneAs<L8>();
         int h = g.Height, w = g.Width;
         var data = new byte[h, w];
@@ -25,6 +25,60 @@ public static class ImageIO
             }
         });
         return data;
+    }
+
+    //public static byte[,] LoadImageToByteMatrix(string path)
+    //{
+    //    using var img = Image.Load(path);
+    //    int h = img.Height, w = img.Width;
+    //    img.
+    //    var data = new byte[h, w];
+    //    img.(accessor =>
+    //    {
+    //        for (int y = 0; y < h; y++)
+    //        {
+    //            var row = accessor.GetRowSpan(y);
+    //            for (int x = 0; x < w; x++)
+    //                data[y, x] = row[x].PackedValue;
+    //        }
+    //    });
+    //    return data;
+    //}
+
+    /// <summary>
+    /// Loads any standard image (e.g. PNG, JPG, BMP, etc.) as an OpenCV grayscale Mat.
+    /// </summary>
+    public static Mat LoadGrayscaleMat(string path)
+    {
+        // Load with ImageSharp
+        using var img = Image.Load(path);
+
+        // Clone as 8-bit luminance format (L8)
+        var g = img.CloneAs<L8>();
+
+        int h = g.Height, w = g.Width;
+
+        // Allocate an OpenCV Mat (8-bit, 1 channel)
+        Mat mat = new Mat(h, w, MatType.CV_8UC1);
+
+        unsafe
+        {
+            byte* ptr = mat.DataPointer;
+            g.ProcessPixelRows(accessor =>
+            {
+                for (int y = 0; y < h; y++)
+                {
+                    var row = accessor.GetRowSpan(y);
+                    for (int x = 0; x < w; x++)
+                    {
+                        ptr[y * w + x] = row[x].PackedValue;
+                    }
+                }
+            });
+        }
+
+
+        return mat;
     }
 
     public static void SaveGrayscale(byte[,] data, string path)
@@ -89,6 +143,14 @@ public static class ImageIO
         var b64 = Convert.ToBase64String(ms.ToArray());
         return $"data:image/png;base64,{b64}";
     }
+
+    public static string MatToDataUrl(Mat mat)
+    {
+        Cv2.ImEncode(".png", mat, out var buf);
+        string b64 = Convert.ToBase64String(buf);
+        return $"data:image/png;base64,{b64}";
+    }
+
 
     public static string LabelMapToDataUrl(int[,] labels, int alpha = 180)
     {

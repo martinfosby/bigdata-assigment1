@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("task3.BlazorServer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bb182bd1862befed14e83358fc4dc1dd70a4ff95")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5d887dd12640f94c915580340b553c15fff7da4b")]
 [assembly: System.Reflection.AssemblyProductAttribute("task3.BlazorServer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("task3.BlazorServer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
